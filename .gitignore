@@ -33,6 +33,7 @@ wheels/
 # Historique et logs Streamlit
 .streamlit/static/
 .streamlit/cache/
+data/
 
 # --- Sécurité & Données (CRUCIAL pour Eisphora) ---
 # Ne jamais inclure de fichiers CSV de test contenant des transactions réelles

@@ -1,0 +1,4 @@
+streamlit
+pandas
+fpdf2
+# Ajoute ici les autres dépendances de ton tax engine (ex: numpy, etc.)
