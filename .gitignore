@@ -26,6 +26,7 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+backend(Old)/
 
 # --- Streamlit ---
 # Dossier de configuration locale de Streamlit
