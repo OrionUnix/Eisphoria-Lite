@@ -3,7 +3,7 @@
 > **The Stateless Crypto Tax Showcase.**  
 > A lightweight, web-based version of the Eisphora tax engine, built for speed, privacy, and developers.
 
-[![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://eisphora-lite.streamlit.app)
+[![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://eisphoria-lite.streamlit.app/)
 
 ---
 
