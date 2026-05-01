@@ -1,8 +1,12 @@
 # app.py – Eisphora Lite (Streamlit)
 
 import hashlib
+import logging
 import pandas as pd
 import streamlit as st
+
+# Désactivation complète de la journalisation pour éviter toute sortie console inutile.
+logging.disable(logging.CRITICAL)
 
 from core.France.calculator import (
     calculate_french_taxes,
@@ -58,71 +62,12 @@ st.warning(
 )
 
 st.title("Eisphora-lite Tableau de Bord Fiscal Crypto")
-
-# ---------------------------------------------------------------------------
-# Sidebar – Profil fiscal
-# ---------------------------------------------------------------------------
-
-with st.sidebar:
-    st.header(" Profil Fiscal")
-
-    st.subheader("🌍 Pays / régime fiscal")
-    france = st.checkbox(
-        "🇫🇷 France",
-        value=True,
-        help="Régime fiscal français actuellement implémenté.",
-    )
-    st.checkbox(
-        "🇱🇺 Luxembourg",
-        value=False,
-        disabled=True,
-        help="En préparation — disponible prochainement.",
-    )
-    st.checkbox(
-        "🇧🇪 Belgique",
-        value=False,
-        disabled=True,
-        help="En préparation — disponible prochainement.",
-    )
-
-    if not france:
-        st.warning("Seul le régime français est disponible pour le moment.")
-
-    country = "France"
-    revenu_net = st.number_input(
-        "Revenu imposable (1AJ)",
-        value=0.0,
-        step=100.0,
-        help="Montant de la case 1AJ de votre déclaration de revenus.",
-        key="revenu_net",
-    )
-
-    parts = st.number_input(
-        "Parts fiscales",
-        value=1.0,
-        step=0.5,
-        min_value=0.5,
-        help="Nombre de parts du foyer fiscal (1 = célibataire, 2 = couple, +0.5 par enfant).",
-        key="parts_fiscales",
-    )
-
-    st.divider()
-
-    if st.button("🗑️ Réinitialiser", use_container_width=True, key="reset_button"):
-        st.cache_data.clear()
-        st.session_state.clear()
-        st.rerun()
-
-    st.divider()
-    st.caption(
-        f"**PFU {get_pfu_rate():.1f}%** · "
-        f"PFU PS {get_pfu_ps_rate():.1f}% · "
-        f"PS barème {get_ps_rate():.1f}% · "
-        f"Seuil exo. {SEUIL_EXON:.0f}€"
-    )
-    st.caption(
-        "Consultez le menu Pages en haut à gauche pour accéder aux mentions légales et à la politique de confidentialité."
-    )
+st.caption(
+    "Cette application ne crée pas de cookie de suivi et ne stocke aucune donnée utilisateur en dehors de la session temporaire Streamlit."
+)
+st.caption(
+    "Consultez le menu Pages en haut à gauche pour accéder aux guides et aux mentions légales."
+)
 
 # ---------------------------------------------------------------------------
 # Upload des fichiers
@@ -133,12 +78,15 @@ with st.container(border=True):
 
     uploaded_files = st.file_uploader(
         "Coinbase, Binance, Kraken…",
-        type=["csv"],
+        type=["csv", "xls", "xlsx"],
         accept_multiple_files=True,
         label_visibility="collapsed",
+        key="uploaded_files",
     )
 
-    st.caption("🔒 Traitement 100% local – aucun fichier n'est envoyé sur un serveur.")
+    st.caption(
+        "🔒 Traitement 100% local – Aucun compte, aucun cookie de suivi, aucune base de données. Vos fichiers sont traités en mémoire vive (RAM) et disparaissent dès que vous fermez cet onglet. Zéro log, zéro stockage."
+)
 
 
 def _dedupe_uploaded_files(files):
@@ -166,35 +114,112 @@ def _dedupe_uploaded_files(files):
 # Traitement principal
 # ---------------------------------------------------------------------------
 
-if not uploaded_files:
+has_saved_results = (
+    "tax_results" in st.session_state
+    and "edited_results" in st.session_state
+    and st.session_state["edited_results"] is not None
+)
+
+if not uploaded_files and not has_saved_results:
     st.stop()
 
-unique_files, duplicate_names = _dedupe_uploaded_files(uploaded_files)
-if duplicate_names:
-    st.warning(
-        "Fichier(s) en double détecté(s) et ignoré(s) : "
-        + ", ".join(sorted(set(duplicate_names)))
-    )
+results = None
+unique_files = []
 
-unique_file_names = [file.name for file, _ in unique_files]
-if st.session_state.get("last_upload") != unique_file_names:
+if uploaded_files:
+    unique_files, duplicate_names = _dedupe_uploaded_files(uploaded_files)
+    if duplicate_names:
+        st.warning(
+            "Fichier(s) en double détecté(s) et ignoré(s) : "
+            + ", ".join(sorted(set(duplicate_names)))
+        )
+
+    unique_file_names = [file.name for file, _ in unique_files]
+    if st.session_state.get("last_upload") != unique_file_names:
+        st.session_state.pop("edited_results", None)
+        st.session_state["last_upload"] = unique_file_names
+
+    # -- Extraction des transactions --
+    all_transactions = []
+    for file, file_bytes in unique_files:
+        txs = load_transactions(file.name, file_bytes)
+        if txs:
+            all_transactions.extend(txs)
+
+    if not all_transactions:
+        st.error("❌ Impossible d'extraire des données depuis vos fichiers.")
+        st.stop()
+
+    # -- Calcul fiscal --
+    with st.spinner("Analyse des cessions en cours…"):
+        results = compute_taxes(all_transactions)
+    st.session_state["tax_results"] = results
+else:
+    results = st.session_state["tax_results"]
+
+st.header("Profil fiscal")
+st.write(
+    "Ce bloc est facultatif, mais il permet de déterminer votre tranche marginale d'imposition (TMI) "
+    "pour comparer la Flat Tax et le barème progressif."
+)
+
+st.subheader("🌍 Pays / régime fiscal")
+france = st.checkbox(
+    "🇫🇷 France",
+    value=True,
+    help="Régime fiscal français actuellement implémenté.",
+)
+st.checkbox(
+    "🇱🇺 Luxembourg",
+    value=False,
+    disabled=True,
+    help="En préparation — disponible prochainement.",
+)
+st.checkbox(
+    "🇧🇪 Belgique",
+    value=False,
+    disabled=True,
+    help="En préparation — disponible prochainement.",
+)
+
+if not france:
+    st.warning("Seul le régime français est disponible pour le moment.")
+
+country = "France"
+revenu_net = st.number_input(
+    "Revenu imposable (1AJ)",
+    value=0.0,
+    step=100.0,
+    help="Montant de la case 1AJ de votre déclaration de revenus.",
+    key="revenu_net",
+)
+
+parts = st.number_input(
+    "Parts fiscales",
+    value=1.0,
+    step=0.5,
+    min_value=0.5,
+    help="Nombre de parts du foyer fiscal (1 = célibataire, 2 = couple, +0.5 par enfant).",
+    key="parts_fiscales",
+)
+
+st.divider()
+
+if st.button("🗑️ Effacer tout les données", use_container_width=True, key="reset_button"):
+    st.cache_data.clear()
+    st.session_state["uploaded_files"] = None
+    st.session_state.pop("last_upload", None)
     st.session_state.pop("edited_results", None)
-    st.session_state["last_upload"] = unique_file_names
+    st.session_state.pop("tax_results", None)
+    st.experimental_rerun()
 
-# -- Extraction des transactions --
-all_transactions = []
-for file, file_bytes in unique_files:
-    txs = load_transactions(file.name, file_bytes)
-    if txs:
-        all_transactions.extend(txs)
-
-if not all_transactions:
-    st.error("❌ Impossible d'extraire des données depuis vos fichiers.")
-    st.stop()
-
-# -- Calcul fiscal --
-with st.spinner("Analyse des cessions en cours…"):
-    results = compute_taxes(all_transactions)
+st.divider()
+st.caption(
+    f"**PFU {get_pfu_rate():.1f}%** · "
+    f"PFU PS {get_pfu_ps_rate():.1f}% · "
+    f"PS barème {get_ps_rate():.1f}% · "
+    f"Seuil exo. {SEUIL_EXON:.0f}€"
+)
 
 if not results["taxable_events"]:
     st.warning("Aucune cession imposable détectée dans vos fichiers.")
@@ -456,6 +481,8 @@ with taxes_placeholder:
 
     if pfu_tax == 0 and bareme_tax == 0 and total_cession >= SEUIL_EXON:
         st.info("ℹ️ Solde net nul ou négatif : pas d'impôt à payer.")
+
+st.divider()
 
 # ---------------------------------------------------------------------------
 # Export CSV

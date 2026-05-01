@@ -34,6 +34,10 @@ st.write(
     "de l'application pendant la durée de la session et sont instantanément effacés après le rendu du calcul."
 )
 st.write("**Pas de Cookies** : Nous n'utilisons aucun traceur publicitaire ou analytique intrusif.")
+st.write(
+    "**Conformité RGPD** : Cette application est conçue pour minimiser les données traitées et respecter le principe de "
+    "protection des données personnelles. Veuillez vérifier la conformité spécifique à votre usage et à votre déploiement en Europe."
+)
 
 st.header("Responsabilité de l'utilisateur")
 

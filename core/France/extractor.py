@@ -69,6 +69,11 @@ def _normalize_columns(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
+def _is_excel_bytes(raw_bytes: bytes) -> bool:
+    """Détecte un fichier Excel en examinant l’en-tête binaire."""
+    return raw_bytes.startswith(b"PK") or raw_bytes.startswith(b"\xD0\xCF\x11\xE0")
+
+
 def _find_col(cols_lower: dict, candidates: list[str]) -> str | None:
     """
     Retourne le nom réel de la première colonne trouvée parmi les candidats.
@@ -144,35 +149,46 @@ def parse_transaction_file(file) -> list[dict]:
     """
     try:
         # ----------------------------------------------------------------
-        # 1. Lecture brute + décodage
+        # 1. Lecture brute
         # ----------------------------------------------------------------
         file.seek(0)
         raw_bytes = file.read()
+        filename = str(getattr(file, "name", "")).lower()
+
+        df = None
+        if filename.endswith((".xls", ".xlsx")) or _is_excel_bytes(raw_bytes):
+            try:
+                df = pd.read_excel(io.BytesIO(raw_bytes), engine="openpyxl")
+            except Exception:
+                df = None
 
         content = _decode_bytes(raw_bytes)
-        if not content:
-            logger.error("Impossible de décoder le fichier CSV (tous encodages échoués)")
-            return []
+        if df is None:
+            if not content:
+                logger.error("Impossible de décoder le fichier CSV/Excel (tous encodages échoués)")
+                return []
 
-        lines = content.splitlines()
+            lines = content.splitlines()
 
-        # ----------------------------------------------------------------
-        # 2. Détection de la ligne de header
-        # ----------------------------------------------------------------
-        header_idx = _find_header_line(lines)
+            # ----------------------------------------------------------------
+            # 2. Détection de la ligne de header
+            # ----------------------------------------------------------------
+            header_idx = _find_header_line(lines)
 
-        if header_idx == -1:
-            logger.warning("Header non détecté – lecture depuis le début du fichier")
-            file.seek(0)
-            df = pd.read_csv(file, sep=None, engine="python", on_bad_lines="skip")
+            if header_idx == -1:
+                logger.warning("Header non détecté – lecture depuis le début du fichier")
+                file.seek(0)
+                df = pd.read_csv(file, sep=None, engine="python", on_bad_lines="skip")
+            else:
+                data_text = "\n".join(lines[header_idx:])
+                df = pd.read_csv(
+                    io.StringIO(data_text),
+                    sep=None,
+                    engine="python",
+                    on_bad_lines="skip",
+                )
         else:
-            data_text = "\n".join(lines[header_idx:])
-            df = pd.read_csv(
-                io.StringIO(data_text),
-                sep=None,
-                engine="python",
-                on_bad_lines="skip",
-            )
+            df = _normalize_columns(df)
 
         if df.empty:
             logger.warning("DataFrame vide après lecture")
@@ -228,6 +244,9 @@ def parse_transaction_file(file) -> list[dict]:
             "product_id", "market", "pair", "produit",
             "trading pair", "symbol",
         ])
+        col_side = _find_col(cols_lower, [
+            "Side", "side", "Direction", "Order Side",
+        ])
         col_notes = _find_col(cols_lower, [
             "Notes", "notes", "description", "memo", "note",
         ])
@@ -273,8 +292,10 @@ def parse_transaction_file(file) -> list[dict]:
                     continue
 
                 # -- Type d'opération ------------------------------------
-                raw_type = str(row[col_type]).strip() if col_type else "unknown"
+                raw_type = str(row[col_type]).strip() if col_type else ""
                 op_type = _normalize_op_type(raw_type)
+                if op_type == OP_UNKNOWN and col_side:
+                    op_type = _normalize_op_type(str(row[col_side]).strip())
 
                 # -- Quantité --------------------------------------------
                 raw_qty = str(row[col_qty]) if col_qty else "0"
@@ -309,6 +330,18 @@ def parse_transaction_file(file) -> list[dict]:
                     raw_cur = str(row[col_currency]).strip().upper()
                     if raw_cur not in ("NAN", "NONE", ""):
                         currency = raw_cur
+
+                if currency == "EUR" and col_product and asset:
+                    prod = str(row[col_product]).strip().upper()
+                    if "/" in prod:
+                        parts = prod.split("/")
+                    elif "-" in prod:
+                        parts = prod.split("-")
+                    else:
+                        parts = [prod[:len(asset)], prod[len(asset):]] if prod.startswith(asset) else [prod]
+
+                    if len(parts) == 2 and parts[0] == asset and parts[1]:
+                        currency = parts[1]
 
                 # --------------------------------------------------------
                 transactions.append({
