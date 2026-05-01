@@ -4,7 +4,7 @@ import hashlib
 import pandas as pd
 import streamlit as st
 
-from core.calculator import (
+from core.France.calculator import (
     calculate_french_taxes,
     calculate_ir,
     get_exoneration_threshold,
@@ -13,7 +13,7 @@ from core.calculator import (
     get_pfu_ps_rate,
     get_ps_rate,
 )
-from core.extractor import parse_transaction_file
+from core.France.extractor import parse_transaction_file
 
 # ---------------------------------------------------------------------------
 # Configuration de la page
@@ -54,8 +54,7 @@ def compute_taxes(transactions: list):
 # ---------------------------------------------------------------------------
 
 st.warning(
-    "⚠️ **Eisphora est un outil open source fourni à titre indicatif.** "
-    "Vérifiez vos calculs et consultez un professionnel si nécessaire."
+    "⚠️ **Eisphora-Lite** est un outil d'aide à la saisie du formulaire 2086. Les résultats sont fournis à titre indicatif et ne constituent pas un conseil fiscal ou juridique. L'auteur décline toute responsabilité en cas d'erreur de déclaration"
 )
 
 st.title("Eisphora-lite Tableau de Bord Fiscal Crypto")
@@ -95,6 +94,7 @@ with st.sidebar:
         value=0.0,
         step=100.0,
         help="Montant de la case 1AJ de votre déclaration de revenus.",
+        key="revenu_net",
     )
 
     parts = st.number_input(
@@ -103,11 +103,12 @@ with st.sidebar:
         step=0.5,
         min_value=0.5,
         help="Nombre de parts du foyer fiscal (1 = célibataire, 2 = couple, +0.5 par enfant).",
+        key="parts_fiscales",
     )
 
     st.divider()
 
-    if st.button("🗑️ Réinitialiser", use_container_width=True):
+    if st.button("🗑️ Réinitialiser", use_container_width=True, key="reset_button"):
         st.cache_data.clear()
         st.session_state.clear()
         st.rerun()
@@ -118,6 +119,9 @@ with st.sidebar:
         f"PFU PS {get_pfu_ps_rate():.1f}% · "
         f"PS barème {get_ps_rate():.1f}% · "
         f"Seuil exo. {SEUIL_EXON:.0f}€"
+    )
+    st.caption(
+        "Consultez le menu Pages en haut à gauche pour accéder aux mentions légales et à la politique de confidentialité."
     )
 
 # ---------------------------------------------------------------------------

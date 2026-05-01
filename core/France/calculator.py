@@ -7,7 +7,7 @@ from datetime import datetime
 from functools import lru_cache
 from typing import Dict, List, Tuple
 
-from core.pricing import (
+from .pricing import (
     get_fiat_to_eur_rate,
     get_historical_price,
     STABLECOINS_EUR,
