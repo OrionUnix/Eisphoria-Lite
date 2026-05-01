@@ -1,0 +1,1 @@
+# core.France package
