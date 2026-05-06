@@ -14,7 +14,7 @@ Eisphora Lite bridges the gap between complex tax laws and non-technical users. 
 *   **Upload your Exchange CSV**: Direct support for Coinbase, Binance, Kraken, and more.
 *   **Instant FIFO Calculation**: Automated matching of acquisitions and disposals.
 *   **Form 2086 Helper**: See your official French tax form filled line by line.
-*   **Tax Optimization**: Compare **PFU (31.4%)** vs. **Barème Progressif** to save money.
+*   **Tax Optimization**: Compare **PFU (30.0%)** vs. **Barème Progressif** to save money.
 *   **Portable Results**: Export your tax summary to PDF or CSV.
 
 ---

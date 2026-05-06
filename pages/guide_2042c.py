@@ -37,7 +37,19 @@ if "edited_results" in st.session_state:
         amount_to_report = None
 
 if amount_to_report is not None:
-    rounded_amount = int(round(amount_to_report))
+    def _fiscal_round(amount: float) -> int:
+        """Arrondi fiscal : 0,01-0,49 → inférieur, 0,50-0,99 → supérieur."""
+        import math
+        import pandas as pd
+        if pd.isna(amount):
+            return 0
+        sign = -1 if amount < 0 else 1
+        absolute = abs(amount)
+        euros = int(absolute)
+        cents = absolute - euros
+        return sign * (euros + 1) if cents >= 0.5 else sign * euros
+
+    rounded_amount = _fiscal_round(amount_to_report)
     if rounded_amount > 0:
         result_label = "GAIN (plus-value)"
         case_label = "3AN"

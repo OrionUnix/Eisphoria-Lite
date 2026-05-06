@@ -8,7 +8,7 @@ st.set_page_config(
 )
 
 st.title("Assistant déclaration 2086")
-st.write("Eisphora a tout calculé pour vous. Recopiez simplement les chiffres dans votre déclaration en ligne, vente par vente.")
+st.write("Eisphora a tout calculé pour vous. Recopiez simplement les chiffres dans votre déclaration en ligne, cession par cession.")
 
 st.warning(
     "Eisphora est un outil open source développé sur le temps libre d'un passionné. "
@@ -49,7 +49,7 @@ if sales_total is not None:
     )
 
     st.subheader("Volume total de vos cessions")
-    st.write(f"Le montant cumulé de vos ventes (somme des lignes 213) s'élève à {sales_total:,.2f} €.")
+    st.write(f"Le montant cumulé de vos cessions (somme des prix de cession bruts, ligne 213) s'élève à {sales_total:,.2f} €.")
     st.info(threshold_note)
 else:
     st.info("Importez vos transactions dans le tableau principal pour afficher le volume total de vos cessions.")
@@ -98,7 +98,7 @@ else:
     else:
         st.header("Assistant déclaration 2086")
         st.write(
-            "L'assistant récupère la table de cession générée dans le tableau principal et vous indique ligne par ligne ce que vous devez vérifier sur le portail impots.gouv.fr."
+            "Chaque cession correspond à une fiche. L'assistant lit la table de cession générée dans le tableau principal et vous indique, étape par étape, ce que vous devez vérifier sur le portail impots.gouv.fr."
         )
 
         df = df.copy()
@@ -172,54 +172,56 @@ else:
                 line_213 = df.at[index, "TOTAL CESSION (€)"]
                 line_214 = df.at[index, "FRAIS (€)"]
                 line_215 = line_213 - line_214
-                line_218 = line_215
-                gain_value = line_213 - df.at[index, "PRIX ACQ. UNIT. (€)"] * df.at[index, "QUANTITÉ"]
+                line_216 = 0.0          # Soulte (0 dans les cas sans soulte)
+                line_218 = line_215 - line_216
+                # Plus-value brute : cession nette − (Prix acq unit × Quantité)
+                gain_value = line_218 - df.at[index, "PRIX ACQ. UNIT. (€)"] * df.at[index, "QUANTITÉ"]
                 gain_label = "gain" if gain_value >= 0 else "moins-value"
 
                 st.markdown(
                     f"""
-**212 — Valeur globale du portefeuille au moment de la cession**  
-Il s’agit de la valeur totale de votre portefeuille au moment de la cession, pas seulement de la crypto vendue.  
-Complétez cette case uniquement si vous connaissez précisément ce montant.  
+**212 — Valeur globale du portefeuille au moment de la cession**
+Il s'agit de la valeur totale de votre portefeuille au moment de la cession, pas seulement de la crypto vendue.
+Complétez cette case uniquement si vous connaissez précisément ce montant.
 
-**213 — Prix de cession**  
-Prix réel perçu ou valeur de la contrepartie obtenue par le cédant lors de la cession.  
+**213 — Prix de cession**
+Prix réel perçu ou valeur de la contrepartie obtenue par le cédant lors de la cession.
 
-{format_money(line_213)}  
-À déclarer : {format_declared(line_213)}  
+{format_money(line_213)}
+À déclarer : {format_declared(line_213)}
 
-**214 — Frais de cession**  
-Frais supportés pour cette cession, notamment ceux perçus par les plateformes et les mineurs.  
+**214 — Frais de cession**
+Frais supportés pour cette cession, notamment ceux perçus par les plateformes et les mineurs.
 
-{format_money(line_214)}  
-À déclarer : {format_declared(line_214)}  
+{format_money(line_214)}
+À déclarer : {format_declared(line_214)}
 
-**215 — Prix de cession net des frais**  
-Calculé automatiquement : ligne 213 − ligne 214  
+**215 — Prix de cession net des frais**
+Calculé automatiquement : ligne 213 − ligne 214
 
-{format_money(line_215)}  
-À déclarer : {format_declared(line_215)}  
+{format_money(line_215)}
+À déclarer : {format_declared(line_215)}
 
-**216 — Soulte reçue ou versée lors de la cession**  
-Indiquez la soulte reçue ou versée. Ici, valeur par défaut 0,00 € pour les cas sans soulte.  
+**216 — Soulte reçue ou versée lors de la cession**
+Indiquez la soulte reçue ou versée. Valeur par défaut 0,00 € pour les cas sans soulte.
 
-0,00 €  
-À déclarer : 0 €  
+0,00 €
+À déclarer : 0 €
 
-**218 — Prix de cession net des frais et soultes**  
-Calculé automatiquement : ligne 215 − ligne 216  
+**218 — Prix de cession net des frais et soultes**
+Calculé automatiquement : ligne 215 − ligne 216
 
-{format_money(line_218)}  
-À déclarer : {format_declared(line_218)}  
+{format_money(line_218)}
+À déclarer : {format_declared(line_218)}
 
-**220 — Prix total d'acquisition du portefeuille**  
-Le prix total d'acquisition du portefeuille est égal à la somme des prix payés en monnaie ayant cours légal pour l'ensemble des acquisitions d'actifs numériques, hors opérations d'échange à sursis, majoré des soultes reçues et minoré des fractions de capital initial.  
-Cette valeur est calculée automatiquement par le portail impots.gouv.fr. Vous n'avez pas besoin de la ressaisir manuellement, vous vérifiez simplement qu'elle correspond à la valeur affichée par le site.  
+**220 — Prix total d'acquisition du portefeuille**
+Le prix total d'acquisition du portefeuille est égal à la somme des prix payés en monnaie ayant cours légal pour l'ensemble des acquisitions d'actifs numériques, hors opérations d'échange à sursis, majoré des soultes reçues et minoré des fractions de capital initial.
+Cette valeur est calculée automatiquement par le portail impots.gouv.fr. Vous n'avez pas besoin de la ressaisir manuellement, vous vérifiez simplement qu'elle correspond à la valeur affichée par le site.
 
-**220 — Plus ou moins-value brute**  
-Calculé selon la formule officielle : prix de cession − (prix total d'acquisition × prix de cession / valeur globale du portefeuille).  
+**221 — Plus ou moins-value brute**
+Calculée selon la formule officielle : prix de cession − (prix total d'acquisition × prix de cession / valeur globale du portefeuille).
 
-{format_money(gain_value)}  
+{format_money(gain_value)}
 """
                 )
 
@@ -232,7 +234,7 @@ Calculé selon la formule officielle : prix de cession − (prix total d'acquisi
                 )
 
         df["NET REÇU (€)"] = df["TOTAL CESSION (€)"] - df["FRAIS (€)"]
-        df["GAIN/PERTE NETTE (€)"] = df["TOTAL CESSION (€)"] - df["PRIX ACQ. UNIT. (€)"] * df["QUANTITÉ"]
+        df["GAIN/PERTE NETTE (€)"] = df["TOTAL CESSION (€)"] - df["PRIX ACQ. UNIT. (€)"] * df["QUANTITÉ"] - df["FRAIS (€)"]
 
         st.markdown(
             "_Si vous rectifiez une erreur de saisie, les lignes calculées ci-dessous s'ajustent automatiquement selon vos nouvelles valeurs._"
@@ -240,7 +242,7 @@ Calculé selon la formule officielle : prix de cession − (prix total d'acquisi
 
         total_sales = df["TOTAL CESSION (€)"].sum()
         st.subheader("Volume total de vos cessions")
-        st.write(f"Le montant cumulé de vos ventes (somme des lignes 213) s'élève à {total_sales:,.2f} €.")
+        st.write(f"Le montant cumulé de vos cessions (somme des prix de cession bruts, ligne 213) s'élève à {total_sales:,.2f} €.")
         if total_sales > 305:
             st.info(
                 "Le seuil d'exonération de 305 € étant dépassé, vos plus-values globales seront bien soumises à l'impôt (PFU ou barème)."
@@ -253,10 +255,10 @@ Calculé selon la formule officielle : prix de cession − (prix total d'acquisi
         st.markdown(
             """
 ### 2 — Votre portefeuille crypto ce jour-là
-212  
-🌍 Valeur de TOUTES vos cryptos à ce moment  
+212
+🌍 Valeur de TOUTES vos cryptos à ce moment
 
-Toutes plateformes confondues, en €, au jour de la vente  
+Toutes plateformes confondues, en €, au jour de la vente
 
 > Attention : cette application ne fournit pas automatiquement la valeur du portefeuille pour chaque date de vente.
 > Si vous connaissez la valeur totale de votre portefeuille ce jour-là, utilisez-la pour la case 212.
@@ -270,7 +272,7 @@ Plus-values de cession d'actifs numériques 3AN et 3BN :
 
 Les plus-values réalisées à compter du 1er janvier 2019 lors de la cession d'actifs numériques ou de droits s'y rapportant, à titre occasionnel par des personnes physiques, directement ou par personne interposée sont imposables au taux de 12,8 % (avec possibilité d'option pour l'imposition au barème progressif en cochant la case 3CN) et soumises aux prélèvements sociaux.
 
-Les actifs numériques comprennent les jetons (représentant, sous forme numérique, un ou plusieurs droits, pouvant être émis, inscrits, conservés ou transférés au moyen d’un dispositif d’enregistrement électronique partagé) et les cryptomonnaies.
+Les actifs numériques comprennent les jetons (représentant, sous forme numérique, un ou plusieurs droits, pouvant être émis, inscrits, conservés ou transférés au moyen d'un dispositif d'enregistrement électronique partagé) et les cryptomonnaies.
 
 Les personnes réalisant des cessions d'actifs numériques dont le montant total n'excède pas 305 € au cours d'une année d'imposition sont exonérées (le dépôt de la déclaration no 2086 est toutefois nécessaire). Les personnes réalisant des cessions dont le montant total excède le seuil de 305 € sont imposées sur l'ensemble des cessions.
 
@@ -293,8 +295,8 @@ st.markdown(
     """
 L'administration exige des nombres entiers. La règle est la suivante :
 
-- De ,01 à ,49 : on arrondit à l'euro inférieur (ex : 12,49 € → 12 €).
-- De ,50 à ,99 : on arrondit à l'euro supérieur (ex : 12,50 € → 13 €).
+- De 0,01 à 0,49 : on arrondit à l'euro inférieur (ex : 12,49 € → 12 €).
+- De 0,50 à 0,99 : on arrondit à l'euro supérieur (ex : 12,50 € → 13 €).
 
 L'application calcule avec les valeurs exactes mais affiche en évidence la valeur arrondie que vous devez réellement recopier dans les cases.
 """

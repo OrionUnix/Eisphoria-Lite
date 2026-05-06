@@ -205,13 +205,13 @@ parts = st.number_input(
 
 st.divider()
 
-if st.button("🗑️ Effacer tout les données", use_container_width=True, key="reset_button"):
+if st.button("🗑️ Effacer toutes les données", use_container_width=True, key="reset_button"):
     st.cache_data.clear()
     st.session_state["uploaded_files"] = None
     st.session_state.pop("last_upload", None)
     st.session_state.pop("edited_results", None)
     st.session_state.pop("tax_results", None)
-    st.experimental_rerun()
+    st.rerun()
 
 st.divider()
 st.caption(
@@ -487,8 +487,6 @@ st.divider()
 # ---------------------------------------------------------------------------
 # Export CSV
 # ---------------------------------------------------------------------------
-
-st.divider()
 
 export_df = st.session_state["edited_results"].copy()
 export_df["GAIN/PERTE (€)"] = (
